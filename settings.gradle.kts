@@ -14,4 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "eKino TV"
 include(":app")
-

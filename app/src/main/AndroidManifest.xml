@@ -10,7 +10,6 @@
         android:name="android.software.leanback"
         android:required="true" />
 
-    <!-- Widoczność zewnętrznego pakietu dla Androida 11+ -->
     <queries>
         <package android:name="com.phlox.tvwebbrowser" />
     </queries>
@@ -40,4 +39,3 @@
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize"/>
     </application>
 </manifest>
-
