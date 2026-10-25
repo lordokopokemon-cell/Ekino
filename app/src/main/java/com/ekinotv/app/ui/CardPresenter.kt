@@ -34,6 +34,6 @@ class CardPresenter : Presenter() {
     override fun onUnbindViewHolder(viewHolder: ViewHolder) {
         val cardView = viewHolder.view as ImageCardView
         cardView.badgeImage = null
-        cardView.mainImage = null
+        cardView.setMainImage(null)
     }
 }
