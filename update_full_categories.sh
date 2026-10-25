@@ -1,53 +1,7 @@
 #!/bin/bash
 set -e
 
-# 1. Poprawka Manifestu (gwarantuje widoczność ikony na Fire OS)
-cat << 'FILE' > app/src/main/AndroidManifest.xml
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <uses-permission android:name="android.permission.INTERNET" />
-    
-    <uses-feature
-        android:name="android.hardware.touchscreen"
-        android:required="false" />
-    <uses-feature
-        android:name="android.software.leanback"
-        android:required="false" />
-
-    <queries>
-        <package android:name="com.phlox.tvwebbrowser" />
-    </queries>
-
-    <application
-        android:allowBackup="true"
-        android:icon="@drawable/app_banner"
-        android:label="eKino"
-        android:banner="@drawable/app_banner"
-        android:theme="@style/Theme.Leanback"
-        android:usesCleartextTraffic="true">
-        
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:screenOrientation="landscape">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
-        </activity>
-        
-        <activity
-            android:name=".player.PlayerActivity"
-            android:exported="false"
-            android:screenOrientation="landscape"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize"/>
-    </application>
-</manifest>
-FILE
-
-# 2. Aktualizacja EkinoScraper (wsparcie dla wielu kategorii i podstron)
+# 1. Rozbudowa EkinoScraper o właściwe kategorie serwisu
 cat << 'FILE' > app/src/main/java/com/ekinotv/app/data/EkinoScraper.kt
 package com.ekinotv.app.data
 
@@ -63,7 +17,7 @@ class EkinoScraper {
         val movies = mutableListOf<MovieItem>()
         val seenUrls = mutableSetOf<String>()
 
-        val elements = doc.select("a[href*=/movie/show/], a[href*=/series/show/], div#posters a")
+        val elements = doc.select("a[href*=/movie/show/], div#posters a")
 
         for (element in elements) {
             val url = element.attr("href")
@@ -95,54 +49,45 @@ class EkinoScraper {
         return movies
     }
 
+    private suspend fun fetchPage(path: String): List<MovieItem> = withContext(Dispatchers.IO) {
+        try {
+            val doc = Jsoup.connect("$baseUrl$path")
+                .userAgent(SessionManager.userAgent)
+                .header("Referer", "https://ekino.ws/")
+                .timeout(15000)
+                .get()
+            parseMovies(doc)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // 1. Rząd: Polecane ze strony głównej
     suspend fun getFeatured(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect(baseUrl)
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            val items = parseMovies(doc)
-            if (items.isNotEmpty()) items.take(12) else emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val items = fetchPage("")
+        if (items.isNotEmpty()) items.take(12) else emptyList()
     }
 
-    suspend fun getMovies(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect("$baseUrl/movies")
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            parseMovies(doc)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    // 2. Rząd: Najnowsze dodane filmy (/movie/cat/+)
+    suspend fun getLatestMovies(): List<MovieItem> = fetchPage("/movie/cat/+")
 
-    suspend fun getSeries(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect("$baseUrl/series")
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            parseMovies(doc)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    // 3. Rząd: Filmy HD (/movie/cat/kategoria[35])
+    suspend fun getHdMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B35%5D")
+
+    // 4. Rząd: Filmy 4K (/movie/cat/kategoria[36])
+    suspend fun get4kMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B36%5D")
 }
 FILE
 
-# 3. Aktualizacja MainFragment (wielorzędowy BrowseSupportFragment z nagłówkami)
+# 2. Aktualizacja MainFragment z 4 rzędami i aktywacją Search Orb
 cat << 'FILE' > app/src/main/java/com/ekinotv/app/ui/MainFragment.kt
 package com.ekinotv.app.ui
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
@@ -168,18 +113,25 @@ class MainFragment : BrowseSupportFragment() {
         isHeadersTransitionOnBackEnabled = true
         adapter = rowsAdapter
 
+        // Aktywacja ikony wyszukiwarki (Search Orb) w lewym górnym rogu
+        searchAffordanceColor = Color.parseColor("#E50914")
+        setOnSearchClickedListener {
+            Toast.makeText(requireContext(), "Wyszukiwarka zostanie podpięta w następnym kroku", Toast.LENGTH_SHORT).show()
+        }
+
         setupEventListeners()
-        loadCategories()
+        loadAllCategories()
     }
 
-    private fun loadCategories() {
+    private fun loadAllCategories() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
-            // Asynchroniczne pobieranie danych dla wszystkich rzędów
+            // Równoległe pobieranie 4 kategorii z serwera
             val featuredDeferred = async { scraper.getFeatured() }
-            val moviesDeferred = async { scraper.getMovies() }
-            val seriesDeferred = async { scraper.getSeries() }
+            val latestDeferred = async { scraper.getLatestMovies() }
+            val hdDeferred = async { scraper.getHdMovies() }
+            val fourKDeferred = async { scraper.get4kMovies() }
 
             val featured = featuredDeferred.await()
             if (featured.isNotEmpty()) {
@@ -187,16 +139,22 @@ class MainFragment : BrowseSupportFragment() {
                 rowsAdapter.add(ListRow(HeaderItem(0, "Hity i Polecane"), rowAdapter))
             }
 
-            val movies = moviesDeferred.await()
-            if (movies.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, movies) }
+            val latest = latestDeferred.await()
+            if (latest.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, latest) }
                 rowsAdapter.add(ListRow(HeaderItem(1, "Najnowsze Filmy"), rowAdapter))
             }
 
-            val series = seriesDeferred.await()
-            if (series.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, series) }
-                rowsAdapter.add(ListRow(HeaderItem(2, "Seriale"), rowAdapter))
+            val hd = hdDeferred.await()
+            if (hd.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, hd) }
+                rowsAdapter.add(ListRow(HeaderItem(2, "Filmy w jakości HD"), rowAdapter))
+            }
+
+            val fourK = fourKDeferred.await()
+            if (fourK.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, fourK) }
+                rowsAdapter.add(ListRow(HeaderItem(3, "Filmy 4K Ultra HD"), rowAdapter))
             }
         }
     }
@@ -211,9 +169,9 @@ class MainFragment : BrowseSupportFragment() {
 }
 FILE
 
-# 4. Wypchnięcie zmian do GitHuba
+# 3. Wypchnięcie zmian do GitHuba
 git add .
-git commit -m "Poprawka widocznosci na Fire TV i dodanie wielu kategorii"
+git commit -m "Pelna obsluga 4 kategorii i Search Orb"
 git push origin main
-rm update_categories.sh
-echo "Kod wysłany! GitHub Actions generuje nową paczkę."
+rm update_full_categories.sh
+echo "Gotowe! GitHub Actions buduje zaktualizowaną wersję aplikacji."

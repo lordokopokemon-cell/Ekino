@@ -12,7 +12,7 @@ class EkinoScraper {
         val movies = mutableListOf<MovieItem>()
         val seenUrls = mutableSetOf<String>()
 
-        val elements = doc.select("a[href*=/movie/show/], a[href*=/series/show/], div#posters a")
+        val elements = doc.select("a[href*=/movie/show/], div#posters a")
 
         for (element in elements) {
             val url = element.attr("href")
@@ -44,43 +44,32 @@ class EkinoScraper {
         return movies
     }
 
+    private suspend fun fetchPage(path: String): List<MovieItem> = withContext(Dispatchers.IO) {
+        try {
+            val doc = Jsoup.connect("$baseUrl$path")
+                .userAgent(SessionManager.userAgent)
+                .header("Referer", "https://ekino.ws/")
+                .timeout(15000)
+                .get()
+            parseMovies(doc)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    // 1. Rząd: Polecane ze strony głównej
     suspend fun getFeatured(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect(baseUrl)
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            val items = parseMovies(doc)
-            if (items.isNotEmpty()) items.take(12) else emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val items = fetchPage("")
+        if (items.isNotEmpty()) items.take(12) else emptyList()
     }
 
-    suspend fun getMovies(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect("$baseUrl/movies")
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            parseMovies(doc)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    // 2. Rząd: Najnowsze dodane filmy (/movie/cat/+)
+    suspend fun getLatestMovies(): List<MovieItem> = fetchPage("/movie/cat/+")
 
-    suspend fun getSeries(): List<MovieItem> = withContext(Dispatchers.IO) {
-        try {
-            val doc = Jsoup.connect("$baseUrl/series")
-                .userAgent(SessionManager.userAgent)
-                .header("Referer", "https://ekino.ws/")
-                .timeout(15000)
-                .get()
-            parseMovies(doc)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    // 3. Rząd: Filmy HD (/movie/cat/kategoria[35])
+    suspend fun getHdMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B35%5D")
+
+    // 4. Rząd: Filmy 4K (/movie/cat/kategoria[36])
+    suspend fun get4kMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B36%5D")
 }

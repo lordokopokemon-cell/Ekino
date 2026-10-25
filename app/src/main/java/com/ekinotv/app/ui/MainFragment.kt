@@ -1,7 +1,9 @@
 package com.ekinotv.app.ui
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
@@ -27,18 +29,25 @@ class MainFragment : BrowseSupportFragment() {
         isHeadersTransitionOnBackEnabled = true
         adapter = rowsAdapter
 
+        // Aktywacja ikony wyszukiwarki (Search Orb) w lewym górnym rogu
+        searchAffordanceColor = Color.parseColor("#E50914")
+        setOnSearchClickedListener {
+            Toast.makeText(requireContext(), "Wyszukiwarka zostanie podpięta w następnym kroku", Toast.LENGTH_SHORT).show()
+        }
+
         setupEventListeners()
-        loadCategories()
+        loadAllCategories()
     }
 
-    private fun loadCategories() {
+    private fun loadAllCategories() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
-            // Asynchroniczne pobieranie danych dla wszystkich rzędów
+            // Równoległe pobieranie 4 kategorii z serwera
             val featuredDeferred = async { scraper.getFeatured() }
-            val moviesDeferred = async { scraper.getMovies() }
-            val seriesDeferred = async { scraper.getSeries() }
+            val latestDeferred = async { scraper.getLatestMovies() }
+            val hdDeferred = async { scraper.getHdMovies() }
+            val fourKDeferred = async { scraper.get4kMovies() }
 
             val featured = featuredDeferred.await()
             if (featured.isNotEmpty()) {
@@ -46,16 +55,22 @@ class MainFragment : BrowseSupportFragment() {
                 rowsAdapter.add(ListRow(HeaderItem(0, "Hity i Polecane"), rowAdapter))
             }
 
-            val movies = moviesDeferred.await()
-            if (movies.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, movies) }
+            val latest = latestDeferred.await()
+            if (latest.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, latest) }
                 rowsAdapter.add(ListRow(HeaderItem(1, "Najnowsze Filmy"), rowAdapter))
             }
 
-            val series = seriesDeferred.await()
-            if (series.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, series) }
-                rowsAdapter.add(ListRow(HeaderItem(2, "Seriale"), rowAdapter))
+            val hd = hdDeferred.await()
+            if (hd.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, hd) }
+                rowsAdapter.add(ListRow(HeaderItem(2, "Filmy w jakości HD"), rowAdapter))
+            }
+
+            val fourK = fourKDeferred.await()
+            if (fourK.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, fourK) }
+                rowsAdapter.add(ListRow(HeaderItem(3, "Filmy 4K Ultra HD"), rowAdapter))
             }
         }
     }
