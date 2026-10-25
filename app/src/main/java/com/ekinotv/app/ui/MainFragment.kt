@@ -1,9 +1,9 @@
 package com.ekinotv.app.ui
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
@@ -29,10 +29,11 @@ class MainFragment : BrowseSupportFragment() {
         isHeadersTransitionOnBackEnabled = true
         adapter = rowsAdapter
 
-        // Aktywacja ikony wyszukiwarki (Search Orb) w lewym górnym rogu
+        // Przejście do wyszukiwarki po kliknięciu lupy
         searchAffordanceColor = Color.parseColor("#E50914")
         setOnSearchClickedListener {
-            Toast.makeText(requireContext(), "Wyszukiwarka zostanie podpięta w następnym kroku", Toast.LENGTH_SHORT).show()
+            val intent = Intent(requireContext(), SearchActivity::class.java)
+            startActivity(intent)
         }
 
         setupEventListeners()
@@ -43,7 +44,6 @@ class MainFragment : BrowseSupportFragment() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
-            // Równoległe pobieranie 4 kategorii z serwera
             val featuredDeferred = async { scraper.getFeatured() }
             val latestDeferred = async { scraper.getLatestMovies() }
             val hdDeferred = async { scraper.getHdMovies() }

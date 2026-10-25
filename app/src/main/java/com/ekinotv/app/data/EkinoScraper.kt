@@ -58,18 +58,28 @@ class EkinoScraper {
         }
     }
 
-    // 1. Rząd: Polecane ze strony głównej
     suspend fun getFeatured(): List<MovieItem> = withContext(Dispatchers.IO) {
         val items = fetchPage("")
         if (items.isNotEmpty()) items.take(12) else emptyList()
     }
 
-    // 2. Rząd: Najnowsze dodane filmy (/movie/cat/+)
     suspend fun getLatestMovies(): List<MovieItem> = fetchPage("/movie/cat/+")
-
-    // 3. Rząd: Filmy HD (/movie/cat/kategoria[35])
     suspend fun getHdMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B35%5D")
-
-    // 4. Rząd: Filmy 4K (/movie/cat/kategoria[36])
     suspend fun get4kMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B36%5D")
+
+    // Obsługa wyszukiwarki (formularz POST z parametrem 'q')
+    suspend fun searchMovies(query: String): List<MovieItem> = withContext(Dispatchers.IO) {
+        try {
+            val doc = Jsoup.connect("$baseUrl/search/qf")
+                .data("q", query)
+                .userAgent(SessionManager.userAgent)
+                .header("Referer", "https://ekino.ws/")
+                .timeout(15000)
+                .post()
+            parseMovies(doc)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
 }
