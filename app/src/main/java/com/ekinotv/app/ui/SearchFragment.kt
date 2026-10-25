@@ -53,7 +53,7 @@ class SearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResu
     private fun executeSearch(query: String) {
         searchJob?.cancel()
         searchJob = lifecycleScope.launch {
-            delay(400) // bufor na zakończenie wpisywania
+            delay(400)
             val results = scraper.searchMovies(query)
             rowsAdapter.clear()
             if (results.isNotEmpty()) {

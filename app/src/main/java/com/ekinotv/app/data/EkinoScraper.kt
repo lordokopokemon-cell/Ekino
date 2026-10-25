@@ -64,10 +64,11 @@ class EkinoScraper {
     }
 
     suspend fun getLatestMovies(): List<MovieItem> = fetchPage("/movie/cat/+")
-    suspend fun getHdMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B35%5D")
+    suspend fun getHorrorMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B15%5D")
+    suspend fun getComedyMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B17%5D")
+    suspend fun getFamilyMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B12%5D")
     suspend fun get4kMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B36%5D")
 
-    // Obsługa wyszukiwarki (formularz POST z parametrem 'q')
     suspend fun searchMovies(query: String): List<MovieItem> = withContext(Dispatchers.IO) {
         try {
             val doc = Jsoup.connect("$baseUrl/search/qf")

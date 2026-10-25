@@ -29,7 +29,6 @@ class MainFragment : BrowseSupportFragment() {
         isHeadersTransitionOnBackEnabled = true
         adapter = rowsAdapter
 
-        // Przejście do wyszukiwarki po kliknięciu lupy
         searchAffordanceColor = Color.parseColor("#E50914")
         setOnSearchClickedListener {
             val intent = Intent(requireContext(), SearchActivity::class.java)
@@ -37,16 +36,18 @@ class MainFragment : BrowseSupportFragment() {
         }
 
         setupEventListeners()
-        loadAllCategories()
+        loadCategories()
     }
 
-    private fun loadAllCategories() {
+    private fun loadCategories() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
             val featuredDeferred = async { scraper.getFeatured() }
             val latestDeferred = async { scraper.getLatestMovies() }
-            val hdDeferred = async { scraper.getHdMovies() }
+            val horrorDeferred = async { scraper.getHorrorMovies() }
+            val comedyDeferred = async { scraper.getComedyMovies() }
+            val familyDeferred = async { scraper.getFamilyMovies() }
             val fourKDeferred = async { scraper.get4kMovies() }
 
             val featured = featuredDeferred.await()
@@ -61,16 +62,28 @@ class MainFragment : BrowseSupportFragment() {
                 rowsAdapter.add(ListRow(HeaderItem(1, "Najnowsze Filmy"), rowAdapter))
             }
 
-            val hd = hdDeferred.await()
-            if (hd.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, hd) }
-                rowsAdapter.add(ListRow(HeaderItem(2, "Filmy w jakości HD"), rowAdapter))
+            val horrors = horrorDeferred.await()
+            if (horrors.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, horrors) }
+                rowsAdapter.add(ListRow(HeaderItem(2, "Horrory"), rowAdapter))
+            }
+
+            val comedies = comedyDeferred.await()
+            if (comedies.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, comedies) }
+                rowsAdapter.add(ListRow(HeaderItem(3, "Komedie"), rowAdapter))
+            }
+
+            val family = familyDeferred.await()
+            if (family.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, family) }
+                rowsAdapter.add(ListRow(HeaderItem(4, "Dla Dzieci i Rodziny"), rowAdapter))
             }
 
             val fourK = fourKDeferred.await()
             if (fourK.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, fourK) }
-                rowsAdapter.add(ListRow(HeaderItem(3, "Filmy 4K Ultra HD"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(5, "Filmy 4K Ultra HD"), rowAdapter))
             }
         }
     }
