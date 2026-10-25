@@ -1,6 +1,7 @@
 package com.ekinotv.app.ui
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.leanback.app.SearchSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
@@ -36,8 +37,10 @@ class SearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResu
 
     override fun onQueryTextChange(newQuery: String?): Boolean {
         val query = newQuery?.trim().orEmpty()
-        if (query.length >= 3) {
+        if (query.length >= 2) {
             executeSearch(query)
+        } else if (query.isEmpty()) {
+            rowsAdapter.clear()
         }
         return true
     }
@@ -53,7 +56,7 @@ class SearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResu
     private fun executeSearch(query: String) {
         searchJob?.cancel()
         searchJob = lifecycleScope.launch {
-            delay(400)
+            delay(350)
             val results = scraper.searchMovies(query)
             rowsAdapter.clear()
             if (results.isNotEmpty()) {
@@ -61,7 +64,9 @@ class SearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResu
                 val listRowAdapter = ArrayObjectAdapter(cardPresenter).apply {
                     addAll(0, results)
                 }
-                rowsAdapter.add(ListRow(HeaderItem(0, "Wyniki dla: \"$query\""), listRowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(0, "Wyniki wyszukiwania dla: \"$query\" (${results.size})"), listRowAdapter))
+            } else {
+                Toast.makeText(requireContext(), "Brak wyników dla: $query", Toast.LENGTH_SHORT).show()
             }
         }
     }
