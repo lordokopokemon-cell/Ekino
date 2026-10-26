@@ -5,7 +5,11 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.leanback.app.DetailsSupportFragment
-import androidx.leanback.widget.*
+import androidx.leanback.widget.Action
+import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.ClassPresenterSelector
+import androidx.leanback.widget.DetailsOverviewRow
+import androidx.leanback.widget.FullWidthDetailsOverviewRowPresenter
 import androidx.lifecycle.lifecycleScope
 import coil.Coil
 import coil.request.ImageRequest
@@ -29,7 +33,7 @@ class DetailsActivity : FragmentActivity() {
 class MovieDetailsFragment : DetailsSupportFragment() {
 
     private val scraper = EkinoScraper()
-    private val rowsAdapter = ArrayObjectAdapter(ClassPresenterSelector())
+    private lateinit var rowsAdapter: ArrayObjectAdapter
     private lateinit var detailsPresenter: FullWidthDetailsOverviewRowPresenter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,19 +44,19 @@ class MovieDetailsFragment : DetailsSupportFragment() {
             initialState = FullWidthDetailsOverviewRowPresenter.STATE_FULL
         }
 
-        (rowsAdapter.presenterSelector as ClassPresenterSelector).addClassPresenter(
-            DetailsOverviewRow::class.java,
-            detailsPresenter
-        )
+        val presenterSelector = ClassPresenterSelector().apply {
+            addClassPresenter(DetailsOverviewRow::class.java, detailsPresenter)
+        }
+        rowsAdapter = ArrayObjectAdapter(presenterSelector)
         adapter = rowsAdapter
 
         loadData()
     }
 
     private fun loadData() {
-        val movieUrl = intentString("MOVIE_URL")
-        val initialTitle = intentString("MOVIE_TITLE")
-        val initialPoster = intentString("MOVIE_POSTER")
+        val movieUrl = activity?.intent?.getStringExtra("MOVIE_URL").orEmpty()
+        val initialTitle = activity?.intent?.getStringExtra("MOVIE_TITLE").orEmpty()
+        val initialPoster = activity?.intent?.getStringExtra("MOVIE_POSTER").orEmpty()
 
         if (movieUrl.isEmpty()) {
             Toast.makeText(requireContext(), "Błąd: Brak adresu filmu", Toast.LENGTH_SHORT).show()
@@ -60,7 +64,6 @@ class MovieDetailsFragment : DetailsSupportFragment() {
             return
         }
 
-        // Karta wstępna (ładuje się natychmiast)
         val initialDetails = MovieDetails(
             title = initialTitle,
             originalTitle = "Wczytywanie szczegółów...",
@@ -75,7 +78,7 @@ class MovieDetailsFragment : DetailsSupportFragment() {
         detailsRow.actionsAdapter = actionAdapter
         rowsAdapter.add(detailsRow)
 
-        // Załadowanie plakatu z Coil
+        // Pobranie plakatu przez Coil
         lifecycleScope.launch {
             if (initialPoster.isNotEmpty()) {
                 val loader = Coil.imageLoader(requireContext())
@@ -90,7 +93,7 @@ class MovieDetailsFragment : DetailsSupportFragment() {
             }
         }
 
-        // Asynchroniczne pobranie pełnych danych filmu i źródeł
+        // Pobranie źródeł i aktualizacja przycisków
         lifecycleScope.launch {
             val fullDetails = scraper.getMovieDetails(movieUrl)
             if (fullDetails != null) {
@@ -107,7 +110,7 @@ class MovieDetailsFragment : DetailsSupportFragment() {
                         )
                     }
 
-                    detailsPresenter.onActionClickedListener = OnActionClickedListener { action ->
+                    detailsPresenter.setOnActionClickedListener { action ->
                         val idx = action.id.toInt()
                         val selectedSource = fullDetails.sources.getOrNull(idx)
                         if (selectedSource != null) {
@@ -116,7 +119,7 @@ class MovieDetailsFragment : DetailsSupportFragment() {
                     }
                 } else {
                     actionAdapter.add(Action(999L, "Brak bezpośrednich odtwarzaczy"))
-                    detailsPresenter.onActionClickedListener = OnActionClickedListener {
+                    detailsPresenter.setOnActionClickedListener {
                         PlaybackRouter.openSource(requireContext(), movieUrl)
                     }
                 }
@@ -125,6 +128,4 @@ class MovieDetailsFragment : DetailsSupportFragment() {
             }
         }
     }
-
-    private fun intentString(key: String): String = activity?.intent?.getStringExtra(key).orEmpty()
 }
