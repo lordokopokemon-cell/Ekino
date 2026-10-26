@@ -12,11 +12,10 @@ class EkinoScraper {
         val movies = mutableListOf<MovieItem>()
         val seenUrls = mutableSetOf<String>()
 
-        // Obsługa listy z wyszukiwarki, podstron i kafelków
         val listItems = doc.select(".movies-list-item")
         for (item in listItems) {
             val titleElem = item.selectFirst(".title a") ?: item.selectFirst(".title")
-            val linkElem = item.selectFirst(".cover-list a") ?: item.selectFirst("a[href*=/movie/show/], a[href*=/series/show/], a[href*=/serie/show/]")
+            val linkElem = item.selectFirst(".cover-list a") ?: item.selectFirst("a[href*=/movie/show/], a[href*=/serie/show/], a[href*=/series/show/]")
             val imgElem = item.selectFirst(".cover-list img") ?: item.selectFirst("img")
 
             val url = linkElem?.attr("href") ?: ""
@@ -39,7 +38,7 @@ class EkinoScraper {
             }
         }
 
-        val elements = doc.select("#posters a, a[href*=/movie/show/], a[href*=/series/show/], a[href*=/serie/show/]")
+        val elements = doc.select("#posters a, a[href*=/movie/show/], a[href*=/serie/show/], a[href*=/series/show/]")
         for (element in elements) {
             val url = element.attr("href")
             if (url.isEmpty() || seenUrls.contains(url)) continue
@@ -92,15 +91,13 @@ class EkinoScraper {
     }
 
     suspend fun getLatestMovies(): List<MovieItem> = fetchPage("/movie/cat/+")
-    suspend fun getActionMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B1%5D")
     suspend fun getHorrorMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B15%5D")
     suspend fun getComedyMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B17%5D")
     suspend fun getFamilyMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B12%5D")
     suspend fun get4kMovies(): List<MovieItem> = fetchPage("/movie/cat/kategoria%5B36%5D")
 
-    // Pobieranie seriali (sprawdza po kolei aktywne adresy serwisu)
     suspend fun getSeries(): List<MovieItem> = withContext(Dispatchers.IO) {
-        val candidates = listOf("/serie/cat/+", "/series/cat/+", "/seriale/cat/+", "/serie", "/series")
+        val candidates = listOf("/serie/cat/+", "/series/cat/+", "/seriale/cat/+", "/serie")
         for (path in candidates) {
             val res = fetchPage(path)
             if (res.isNotEmpty()) return@withContext res
@@ -120,5 +117,22 @@ class EkinoScraper {
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    // Zaawansowany silnik filtrów
+    suspend fun getFilteredMovies(
+        type: String = "movie",
+        genreId: String = "",
+        version: String = "",
+        year: String = ""
+    ): List<MovieItem> = withContext(Dispatchers.IO) {
+        val parts = mutableListOf<String>()
+        if (genreId.isNotEmpty()) parts.add("kategoria%5B$genreId%5D")
+        if (version.isNotEmpty()) parts.add("wersja%5B$version%5D")
+        if (year.isNotEmpty()) parts.add("rok%5B$year%5D")
+
+        val queryPart = if (parts.isNotEmpty()) parts.joinToString("+") + "+" else "+"
+        val path = "/$type/cat/$queryPart"
+        fetchPage(path)
     }
 }

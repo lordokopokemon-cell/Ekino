@@ -6,10 +6,10 @@ import android.widget.TextView
 import androidx.leanback.widget.ImageCardView
 import androidx.leanback.widget.Presenter
 import coil.load
+import com.ekinotv.app.R
 import com.ekinotv.app.data.MovieItem
 
 class CardPresenter : Presenter() {
-    // Powiększenie o 10% (z 200x300 na 220x330)
     private val CARD_WIDTH = 220
     private val CARD_HEIGHT = 330
 
@@ -19,7 +19,6 @@ class CardPresenter : Presenter() {
             isFocusableInTouchMode = true
             setMainImageDimensions(CARD_WIDTH, CARD_HEIGHT)
 
-            // Odblokowanie 2 linijek tekstu dla tytułu
             findViewById<TextView>(androidx.leanback.R.id.title_text)?.apply {
                 maxLines = 2
                 isSingleLine = false
@@ -32,10 +31,16 @@ class CardPresenter : Presenter() {
     override fun onBindViewHolder(viewHolder: ViewHolder, item: Any?) {
         val movie = item as? MovieItem ?: return
         val cardView = viewHolder.view as ImageCardView
-        
+
         cardView.titleText = movie.title
-        cardView.contentText = null // Zwolnienie miejsca pod 2 linie tytułu
-        
+
+        if (movie.id == "ACTION_OPEN_FILTER") {
+            cardView.contentText = "Gatunek • Lektor • Rok"
+            cardView.mainImageView.setImageResource(R.drawable.app_banner)
+            return
+        }
+
+        cardView.contentText = null
         cardView.mainImageView.load(movie.posterUrl) {
             crossfade(true)
         }

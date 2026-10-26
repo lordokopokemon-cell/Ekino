@@ -9,6 +9,7 @@ import androidx.leanback.widget.ArrayObjectAdapter
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.ListRowPresenter
+import androidx.leanback.widget.SectionRow
 import androidx.lifecycle.lifecycleScope
 import com.ekinotv.app.data.EkinoScraper
 import com.ekinotv.app.data.MovieItem
@@ -31,8 +32,7 @@ class MainFragment : BrowseSupportFragment() {
 
         searchAffordanceColor = Color.parseColor("#E50914")
         setOnSearchClickedListener {
-            val intent = Intent(requireContext(), SearchActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(requireContext(), SearchActivity::class.java))
         }
 
         setupEventListeners()
@@ -43,10 +43,8 @@ class MainFragment : BrowseSupportFragment() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
-            // Pobieranie równoległe filmów i seriali
             val featuredDeferred = async { scraper.getFeatured() }
             val latestDeferred = async { scraper.getLatestMovies() }
-            val actionDeferred = async { scraper.getActionMovies() }
             val horrorDeferred = async { scraper.getHorrorMovies() }
             val comedyDeferred = async { scraper.getComedyMovies() }
             val familyDeferred = async { scraper.getFamilyMovies() }
@@ -56,61 +54,70 @@ class MainFragment : BrowseSupportFragment() {
             var headerId = 0L
 
             // --- SEKCJA: FILMY ---
+            rowsAdapter.add(SectionRow(HeaderItem(headerId++, "FILMY")))
+
             val featured = featuredDeferred.await()
             if (featured.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, featured) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Hity i Polecane"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Hity i Polecane"), rowAdapter))
             }
 
             val latest = latestDeferred.await()
             if (latest.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, latest) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Najnowsze"), rowAdapter))
-            }
-
-            val action = actionDeferred.await()
-            if (action.isNotEmpty()) {
-                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, action) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Akcja"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Najnowsze"), rowAdapter))
             }
 
             val horrors = horrorDeferred.await()
             if (horrors.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, horrors) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Horrory"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Horrory"), rowAdapter))
             }
 
             val comedies = comedyDeferred.await()
             if (comedies.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, comedies) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Komedie"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Komedie"), rowAdapter))
             }
 
             val family = familyDeferred.await()
             if (family.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, family) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Dla Dzieci i Rodziny"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Dla Dzieci i Rodziny"), rowAdapter))
             }
 
             val fourK = fourKDeferred.await()
             if (fourK.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, fourK) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: 4K Ultra HD"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "4K Ultra HD"), rowAdapter))
             }
 
             // --- SEKCJA: SERIALE ---
+            rowsAdapter.add(SectionRow(HeaderItem(headerId++, "SERIALE")))
+
             val series = seriesDeferred.await()
             if (series.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, series) }
-                rowsAdapter.add(ListRow(HeaderItem(headerId++, "📺 Seriale: Najnowsze"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "Najnowsze Seriale"), rowAdapter))
             }
+
+            // --- SEKCJA: FILTROWANIE ---
+            rowsAdapter.add(SectionRow(HeaderItem(headerId++, "KATALOG I FILTROWANIE")))
+            val filterRowAdapter = ArrayObjectAdapter(cardPresenter).apply {
+                add(MovieItem(id = "ACTION_OPEN_FILTER", title = "🎯 Otwórz zaawansowane filtry", posterUrl = "", pageUrl = ""))
+            }
+            rowsAdapter.add(ListRow(HeaderItem(headerId++, "Wybierz gatunek, wersję i rok"), filterRowAdapter))
         }
     }
 
     private fun setupEventListeners() {
         onItemViewClickedListener = androidx.leanback.widget.OnItemViewClickedListener { _, item, _, _ ->
             if (item is MovieItem) {
-                PlaybackRouter.playMovie(requireContext(), item)
+                if (item.id == "ACTION_OPEN_FILTER") {
+                    startActivity(Intent(requireContext(), FilterActivity::class.java))
+                } else {
+                    PlaybackRouter.playMovie(requireContext(), item)
+                }
             }
         }
     }
