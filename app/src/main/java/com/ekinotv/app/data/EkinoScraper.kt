@@ -119,7 +119,6 @@ class EkinoScraper {
         }
     }
 
-    // Zaawansowany silnik filtrów
     suspend fun getFilteredMovies(
         type: String = "movie",
         genreId: String = "",
@@ -134,5 +133,65 @@ class EkinoScraper {
         val queryPart = if (parts.isNotEmpty()) parts.joinToString("+") + "+" else "+"
         val path = "/$type/cat/$queryPart"
         fetchPage(path)
+    }
+
+    // Pobieranie pełnych szczegółów filmu i źródeł odtwarzaczy
+    suspend fun getMovieDetails(pageUrl: String): MovieDetails? = withContext(Dispatchers.IO) {
+        try {
+            val doc = Jsoup.connect(pageUrl)
+                .userAgent(SessionManager.userAgent)
+                .header("Referer", "https://ekino.ws/")
+                .timeout(15000)
+                .get()
+
+            val title = doc.selectFirst("h1.title")?.text()?.trim().orEmpty()
+            val origTitle = doc.selectFirst("h2.title")?.text()?.trim().orEmpty()
+            val description = doc.selectFirst(".descriptionMovie")?.text()?.trim().orEmpty()
+            val poster = doc.selectFirst(".img-shadow img, .cover-list img, div#posters img")?.attr("src").orEmpty()
+            val fullPoster = if (poster.isNotEmpty()) (if (poster.startsWith("http")) poster else "$baseUrl$poster") else ""
+
+            val sources = mutableListOf<PlayerSource>()
+            val tabs = doc.select("#myTab li")
+
+            for (tab in tabs) {
+                val link = tab.selectFirst("a") ?: continue
+                val targetPaneId = link.attr("href").removePrefix("#").trim()
+                if (targetPaneId.isEmpty()) continue
+
+                val version = tab.select("i[title]").attr("title").ifEmpty {
+                    tab.select("img[title]").attr("title")
+                }.ifEmpty { "Domyślna" }
+
+                val pane = doc.getElementById(targetPaneId)
+                val onclick = pane?.selectFirst("a[onClick*='ShowPlayer']")?.attr("onClick").orEmpty()
+
+                val match = Regex("""ShowPlayer\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)""").find(onclick)
+                if (match != null) {
+                    val host = match.groupValues[1]
+                    val pid = match.groupValues[2]
+                    val watchUrl = "$baseUrl/watch/f/$host/$pid"
+                    sources.add(
+                        PlayerSource(
+                            host = host.uppercase(),
+                            id = pid,
+                            version = version,
+                            watchUrl = watchUrl
+                        )
+                    )
+                }
+            }
+
+            MovieDetails(
+                title = title,
+                originalTitle = origTitle,
+                description = description,
+                posterUrl = fullPoster,
+                pageUrl = pageUrl,
+                sources = sources
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.ekinotv.app.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.leanback.app.SearchSupportFragment
@@ -11,7 +12,6 @@ import androidx.leanback.widget.ObjectAdapter
 import androidx.lifecycle.lifecycleScope
 import com.ekinotv.app.data.EkinoScraper
 import com.ekinotv.app.data.MovieItem
-import com.ekinotv.app.player.PlaybackRouter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -28,7 +28,12 @@ class SearchFragment : SearchSupportFragment(), SearchSupportFragment.SearchResu
 
         setOnItemViewClickedListener { _, item, _, _ ->
             if (item is MovieItem) {
-                PlaybackRouter.playMovie(requireContext(), item)
+                val intent = Intent(requireContext(), DetailsActivity::class.java).apply {
+                    putExtra("MOVIE_TITLE", item.title)
+                    putExtra("MOVIE_POSTER", item.posterUrl)
+                    putExtra("MOVIE_URL", item.pageUrl)
+                }
+                startActivity(intent)
             }
         }
     }

@@ -13,7 +13,6 @@ import androidx.leanback.widget.SectionRow
 import androidx.lifecycle.lifecycleScope
 import com.ekinotv.app.data.EkinoScraper
 import com.ekinotv.app.data.MovieItem
-import com.ekinotv.app.player.PlaybackRouter
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
@@ -53,7 +52,6 @@ class MainFragment : BrowseSupportFragment() {
 
             var headerId = 0L
 
-            // --- SEKCJA: FILMY ---
             rowsAdapter.add(SectionRow(HeaderItem(headerId++, "FILMY")))
 
             val featured = featuredDeferred.await()
@@ -92,7 +90,6 @@ class MainFragment : BrowseSupportFragment() {
                 rowsAdapter.add(ListRow(HeaderItem(headerId++, "4K Ultra HD"), rowAdapter))
             }
 
-            // --- SEKCJA: SERIALE ---
             rowsAdapter.add(SectionRow(HeaderItem(headerId++, "SERIALE")))
 
             val series = seriesDeferred.await()
@@ -101,7 +98,6 @@ class MainFragment : BrowseSupportFragment() {
                 rowsAdapter.add(ListRow(HeaderItem(headerId++, "Najnowsze Seriale"), rowAdapter))
             }
 
-            // --- SEKCJA: FILTROWANIE ---
             rowsAdapter.add(SectionRow(HeaderItem(headerId++, "KATALOG I FILTROWANIE")))
             val filterRowAdapter = ArrayObjectAdapter(cardPresenter).apply {
                 add(MovieItem(id = "ACTION_OPEN_FILTER", title = "🎯 Otwórz zaawansowane filtry", posterUrl = "", pageUrl = ""))
@@ -116,7 +112,12 @@ class MainFragment : BrowseSupportFragment() {
                 if (item.id == "ACTION_OPEN_FILTER") {
                     startActivity(Intent(requireContext(), FilterActivity::class.java))
                 } else {
-                    PlaybackRouter.playMovie(requireContext(), item)
+                    val intent = Intent(requireContext(), DetailsActivity::class.java).apply {
+                        putExtra("MOVIE_TITLE", item.title)
+                        putExtra("MOVIE_POSTER", item.posterUrl)
+                        putExtra("MOVIE_URL", item.pageUrl)
+                    }
+                    startActivity(intent)
                 }
             }
         }

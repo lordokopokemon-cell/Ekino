@@ -50,6 +50,12 @@
             android:exported="false"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize" />
+
+        <activity
+            android:name=".ui.DetailsActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize" />
         
         <activity
             android:name=".player.PlayerActivity"
