@@ -43,47 +43,66 @@ class MainFragment : BrowseSupportFragment() {
         lifecycleScope.launch {
             val cardPresenter = CardPresenter()
 
+            // Pobieranie równoległe filmów i seriali
             val featuredDeferred = async { scraper.getFeatured() }
             val latestDeferred = async { scraper.getLatestMovies() }
+            val actionDeferred = async { scraper.getActionMovies() }
             val horrorDeferred = async { scraper.getHorrorMovies() }
             val comedyDeferred = async { scraper.getComedyMovies() }
             val familyDeferred = async { scraper.getFamilyMovies() }
             val fourKDeferred = async { scraper.get4kMovies() }
+            val seriesDeferred = async { scraper.getSeries() }
 
+            var headerId = 0L
+
+            // --- SEKCJA: FILMY ---
             val featured = featuredDeferred.await()
             if (featured.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, featured) }
-                rowsAdapter.add(ListRow(HeaderItem(0, "Hity i Polecane"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Hity i Polecane"), rowAdapter))
             }
 
             val latest = latestDeferred.await()
             if (latest.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, latest) }
-                rowsAdapter.add(ListRow(HeaderItem(1, "Najnowsze Filmy"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Najnowsze"), rowAdapter))
+            }
+
+            val action = actionDeferred.await()
+            if (action.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, action) }
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Akcja"), rowAdapter))
             }
 
             val horrors = horrorDeferred.await()
             if (horrors.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, horrors) }
-                rowsAdapter.add(ListRow(HeaderItem(2, "Horrory"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Horrory"), rowAdapter))
             }
 
             val comedies = comedyDeferred.await()
             if (comedies.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, comedies) }
-                rowsAdapter.add(ListRow(HeaderItem(3, "Komedie"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Komedie"), rowAdapter))
             }
 
             val family = familyDeferred.await()
             if (family.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, family) }
-                rowsAdapter.add(ListRow(HeaderItem(4, "Dla Dzieci i Rodziny"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: Dla Dzieci i Rodziny"), rowAdapter))
             }
 
             val fourK = fourKDeferred.await()
             if (fourK.isNotEmpty()) {
                 val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, fourK) }
-                rowsAdapter.add(ListRow(HeaderItem(5, "Filmy 4K Ultra HD"), rowAdapter))
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "🎬 Filmy: 4K Ultra HD"), rowAdapter))
+            }
+
+            // --- SEKCJA: SERIALE ---
+            val series = seriesDeferred.await()
+            if (series.isNotEmpty()) {
+                val rowAdapter = ArrayObjectAdapter(cardPresenter).apply { addAll(0, series) }
+                rowsAdapter.add(ListRow(HeaderItem(headerId++, "📺 Seriale: Najnowsze"), rowAdapter))
             }
         }
     }
